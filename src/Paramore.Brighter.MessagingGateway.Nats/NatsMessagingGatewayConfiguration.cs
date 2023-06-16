@@ -12,7 +12,7 @@
         /// </summary>
         public string Name { get; set; }
 
-        public string SecurtiyType { get; set; }
+        public string SecurtiyProtocol { get; set; }
     }
 }
 

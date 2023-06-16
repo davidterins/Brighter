@@ -1,133 +1,163 @@
 ﻿using System;
 using Microsoft.Extensions.Logging;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Paramore.Brighter.Logging;
+using NATS.Client.JetStream;
+using NATS.Client;
 
 namespace Paramore.Brighter.MessagingGateway.Nats
 {
     public class NatsMessagingGateway
     {
         protected static readonly ILogger s_logger = ApplicationLogging.CreateLogger<NatsMessageProducer>();
-        protected ClientConfig _clientConfig;
+        protected IConnection _natsServerConnection;
+        protected string _streamName;
+        //protected JetStreamOptions _jetStreamOptions;
+        //protected StreamConfiguration _streamConfiguration;
         protected OnMissingChannel MakeChannels;
         protected RoutingKey Topic;
         protected int NumPartitions;
         protected short ReplicationFactor;
         protected int TopicFindTimeoutMs;
+        protected string StreamName;
+        protected string TopicName;
 
         protected void EnsureTopic()
         {
-            if (MakeChannels == OnMissingChannel.Assume)
-                return;
 
-            if (MakeChannels == OnMissingChannel.Validate || MakeChannels == OnMissingChannel.Create)
+            switch (MakeChannels)
             {
-                var exists = FindTopic();
+                case OnMissingChannel.Assume:
+                    return;
+                case OnMissingChannel.Create:
+                    // Not supported as of now...
+                    throw new NotSupportedException("Creating Nats subjects, streams or both is not supported.");
+                case OnMissingChannel.Validate:
+                    var subjectExists = FindSubject();
 
-                if (!exists && MakeChannels == OnMissingChannel.Validate)
-                    throw new ChannelFailureException($"Topic: {Topic.Value} does not exist");
+                    if (subjectExists)
+                        return;
 
-                if (!exists && MakeChannels == OnMissingChannel.Create)
-                    MakeTopic().GetAwaiter().GetResult();
+                    throw new ChannelFailureException($"Subject: {Topic.Value} does not exist");
             }
         }
 
-        private async Task MakeTopic()
+        private bool FindSubject()
         {
-            using (var adminClient = new AdminClientBuilder(_clientConfig).Build())
-            {
-                try
-                {
-                    await adminClient.CreateTopicsAsync(new List<TopicSpecification>
-                    {
-                        new TopicSpecification
-                        {
-                            Name = Topic.Value,
-                            NumPartitions = NumPartitions,
-                            ReplicationFactor = ReplicationFactor
-                        }
-                    });
-                }
-                catch (CreateTopicsException e)
-                {
-                    if (e.Results[0].Error.Code != ErrorCode.TopicAlreadyExists)
-                    {
-                        throw new ChannelFailureException(
-                            $"An error occured creating topic {Topic.Value}: {e.Results[0].Error.Reason}");
-                    }
+            IJetStreamManagement jetStreamManagement = _natsServerConnection.CreateJetStreamManagementContext();
 
-                    s_logger.LogDebug("Topic {Topic} already exists", Topic.Value);
+            try
+            {
+                StreamConfiguration streamConfig = jetStreamManagement.GetStreamInfo(StreamName).Config;
+
+                if (streamConfig.Subjects.Contains(TopicName))
+                {
+                    return true;
                 }
+
+                return false;
+            }
+            catch (Exception e)
+            {
+                throw new ChannelFailureException(e.Message);
             }
         }
 
-        private bool FindTopic()
-        {
-            using (var adminClient = new AdminClientBuilder(_clientConfig).Build())
-            {
-                try
-                {
-                    bool found = false;
+        //private void CreateJetsStreamSubject()
+        //{
+        //    string natsUrl = "nats://localhost:4222"; // Replace with your NATS server URL
 
-                    var metadata = adminClient.GetMetadata(Topic.Value, TimeSpan.FromMilliseconds(TopicFindTimeoutMs));
-                    //confirm we are in the list
-                    var matchingTopics = metadata.Topics.Where(tp => tp.Topic == Topic.Value).ToArray();
-                    if (matchingTopics.Length > 0)
-                    {
-                        found = true;
-                        var matchingTopic = matchingTopics[0];
+        //    // Create a new NATS connection
+        //    using (IConnection connection = new ConnectionFactory().CreateConnection(natsUrl))
+        //    {
+        //        // Create the JetStream context
+        //        IJetStreamManagement JetStreamManagement = connection.CreateJetStreamManagementContext(JetStreamOptions.DefaultJsOptions);
 
-                        //was it really found?
-                        found = matchingTopic.Error != null && matchingTopic.Error.Code != ErrorCode.UnknownTopicOrPart;
-                        if (found)
-                        {
-                            //is it in error, and does it have required number of partitions or replicas
-                            bool inError = matchingTopic.Error != null && matchingTopic.Error.Code != ErrorCode.NoError;
-                            bool matchingPartitions = matchingTopic.Partitions.Count == NumPartitions;
-                            bool replicated =
-                                matchingTopic.Partitions.All(
-                                    partition => partition.Replicas.Length == ReplicationFactor);
 
-                            bool valid = !inError && matchingPartitions && replicated;
+        //        // Create a new stream
+        //        string streamName = "my_stream";
+        //        string subject = "my_subject";
 
-                            if (!valid)
-                            {
-                                string error = "Topic exists but does not match publication: ";
-                                //if topic is in error
-                                if (inError)
-                                {
-                                    error += $" topic is in error => {matchingTopic.Error.Reason};";
-                                }
+        //        StreamConfiguration streamConfig = StreamConfiguration.Builder()
+        //            .WithName(streamName)
+        //            .WithSubjects(subject)
+        //            .WithMaxMessages(1000)
+        //            .Build();
 
-                                if (!matchingPartitions)
-                                {
-                                    error +=
-                                        $"topic is misconfigured => NumPartitions should be {NumPartitions} but is {matchingTopic.Partitions.Count};";
-                                }
+        //        try
+        //        {
+        //            // Create the stream
+        //            JetStreamManagement.AddStream(streamConfig);
 
-                                if (!replicated)
-                                {
-                                    error +=
-                                        $"topic is misconfigured => ReplicationFactor should be {ReplicationFactor} but is {matchingTopic.Partitions[0].Replicas.Length};";
-                                }
+        //            Console.WriteLine("Stream created successfully!");
+        //        }
+        //        catch (NATSBadSubscriptionException ex)
+        //        {
+        //            Console.WriteLine("Error creating stream: " + ex.Message);
+        //        }
+        //    }
+        //}
 
-                                s_logger.LogWarning(error);
-                            }
-                        }
-                    }
+        //private void AddJetsStreamSubject()
+        //{
+        //    string natsUrl = "nats://localhost:4222"; // Replace with your NATS server URL
 
-                    if (found)
-                        s_logger.LogInformation($"Topic {Topic.Value} exists");
+        //    // Create a new NATS connection
+        //    using (IConnection connection = new ConnectionFactory().CreateConnection(natsUrl))
+        //    {
+        //        // Create the JetStream context
+        //        IJetStreamManagement jetStreamManagement = connection.CreateJetStreamManagementContext();
 
-                    return found;
-                }
-                catch (Exception e)
-                {
-                    throw new ChannelFailureException($"Error finding topic {Topic.Value}", e);
-                }
-            }
-        }
+        //        // Update an existing stream
+        //        string streamName = "my_stream";
+        //        string subjectToAdd = "additional_subject";
+
+        //        try
+        //        {
+        //            // Retrieve the current stream configuration
+        //            StreamConfiguration streamConfig = jetStreamManagement.GetStreamInfo(streamName).Config;
+
+        //            streamConfig.Subjects.Add(subjectToAdd);
+
+        //            // Update the stream with the new configuration
+        //            jetStreamManagement.UpdateStream(streamConfig);
+
+        //            Console.WriteLine("Subject added to the stream successfully!");
+        //        }
+        //        catch (NATSBadSubscriptionException ex)
+        //        {
+        //            Console.WriteLine("Error updating stream: " + ex.Message);
+        //        }
+        //    }
+        //}
+
+        //private async Task MakeSubject()
+        //{
+        //    using (var adminClient = new AdminClientBuilder(_clientConfig).Build())
+        //    {
+        //        try
+        //        {
+        //            await adminClient.CreateTopicsAsync(new List<TopicSpecification>
+        //            {
+        //                new TopicSpecification
+        //                {
+        //                    Name = Topic.Value,
+        //                    NumPartitions = NumPartitions,
+        //                    ReplicationFactor = ReplicationFactor
+        //                }
+        //            });
+        //        }
+        //        catch (CreateTopicsException e)
+        //        {
+        //            if (e.Results[0].Error.Code != ErrorCode.TopicAlreadyExists)
+        //            {
+        //                throw new ChannelFailureException(
+        //                    $"An error occured creating topic {Topic.Value}: {e.Results[0].Error.Reason}");
+        //            }
+
+        //            s_logger.LogDebug("Topic {Topic} already exists", Topic.Value);
+        //        }
+        //    }
+        //}
     }
 }
 

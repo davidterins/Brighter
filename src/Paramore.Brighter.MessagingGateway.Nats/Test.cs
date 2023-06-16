@@ -1,7 +1,8 @@
-
+﻿
 using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Paramore.Brighter.Extensions.DependencyInjection;
+using Paramore.Brighter.MessagingGateway.Nats;
 using Paramore.Brighter.ServiceActivator.Extensions.DependencyInjection;
 
 namespace Paramore.Brighter.MessagingGateway.Nats
@@ -17,14 +18,14 @@ namespace Paramore.Brighter.MessagingGateway.Nats
                     {
                         NatsServer = "nats://localhost:4222",
                         Name = "NatsTestClientApplication",
-                        SecurtiyType = "TODO"
+                        SecurtiyProtocol = "TODO"
                     },
                     new List<NatsPublicationConfig>()
                     {
                         new NatsPublicationConfig
                         {
-                            MakeChannels = OnMissingChannel.Create,
-                            Topic =  new RoutingKey("TheTopic"),
+                            MakeChannels = OnMissingChannel.Validate,
+                            Topic =  new RoutingKey("greeting.event"),
                         }
                     })
                 .Create());
