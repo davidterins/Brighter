@@ -342,8 +342,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Paramore.Brighter.Azure.Tes
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Paramore.Brighter.Archive.Azure", "src\Paramore.Brighter.Archive.Azure\Paramore.Brighter.Archive.Azure.csproj", "{F329B6C6-40C2-45BA-A2A8-276ACAFA1867}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Paramore.Brighter.MessagingGateway.Nats.ConsoleTest", "Paramore.Brighter.MessagingGateway.Nats.ConsoleTest\Paramore.Brighter.MessagingGateway.Nats.ConsoleTest.csproj", "{DA107162-48ED-4D7D-9151-F0B671606417}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NatsTaskQueue", "NatsTaskQueue", "{4C4CD088-4799-4A4B-A787-C01B86DCBF1C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Greetings", "samples\NatsTaskQueue\Greetings\Greetings.csproj", "{2C8C490B-EF94-494C-9888-085696BD5CAD}"
@@ -1958,18 +1956,6 @@ Global
 		{F329B6C6-40C2-45BA-A2A8-276ACAFA1867}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{F329B6C6-40C2-45BA-A2A8-276ACAFA1867}.Release|x86.ActiveCfg = Release|Any CPU
 		{F329B6C6-40C2-45BA-A2A8-276ACAFA1867}.Release|x86.Build.0 = Release|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Debug|x86.Build.0 = Debug|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Release|Any CPU.Build.0 = Release|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Release|Mixed Platforms.Build.0 = Release|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Release|x86.ActiveCfg = Release|Any CPU
-		{DA107162-48ED-4D7D-9151-F0B671606417}.Release|x86.Build.0 = Release|Any CPU
 		{2C8C490B-EF94-494C-9888-085696BD5CAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2C8C490B-EF94-494C-9888-085696BD5CAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2C8C490B-EF94-494C-9888-085696BD5CAD}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
