@@ -26,7 +26,6 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             PublishOptions publishOptions = PublishOptions.Builder()
                 .WithMessageId(message.Id.ToString())
                 .WithStream(_streamName)
-                .WithTimeout(1000)
                 .Build();
 
             return jetStream.Publish(natsMessage, publishOptions);
@@ -41,7 +40,7 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             PublishOptions publishOptions = PublishOptions.Builder()
                 .WithMessageId(message.Id.ToString())
                 .WithStream(_streamName)
-                .WithTimeout(1000)
+                //.WithTimeout(1000)
                 .Build();
 
             return await jetStream.PublishAsync(natsMessage, publishOptions);
@@ -51,7 +50,8 @@ namespace Paramore.Brighter.MessagingGateway.Nats
         {
             MsgHeader headers = new MsgHeader();// _headerBuilder?.Build(message);
 
-            Msg natsMessage = new Msg(message.Header.Topic, message.Header.ReplyTo, headers, message.Body.Bytes);
+            // Topic/Subject in the Msg should not include streamname, subjects are unique across streams
+            Msg natsMessage = new Msg(message.Header.Topic, null, headers, message.Body.Bytes);
 
             return natsMessage;
         }

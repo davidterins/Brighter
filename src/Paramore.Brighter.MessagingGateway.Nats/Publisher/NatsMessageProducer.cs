@@ -67,12 +67,11 @@ namespace Paramore.Brighter.MessagingGateway.Nats
 
             var indexOfStreamNameSplit = Topic.Value.IndexOf(".");
 
-            StreamName = Topic.Value.Substring(0, indexOfStreamNameSplit);
-            TopicName = Topic.Value.Substring(indexOfStreamNameSplit + 1);
+            StreamName = publication.StreamName;
+            TopicName = publication.Topic;
 
             //NumPartitions = publication.NumPartitions;
             //ReplicationFactor = publication.ReplicationFactor;
-
             //_headerBuilder = publication.MessageHeaderBuilder;
         }
 
@@ -85,7 +84,7 @@ namespace Paramore.Brighter.MessagingGateway.Nats
 
             _publisher = new NatsMessagePublisher(_natsServerConnection, StreamName);
 
-            EnsureTopic();
+            //EnsureTopic();
         }
 
         #region IAmMessageProducer

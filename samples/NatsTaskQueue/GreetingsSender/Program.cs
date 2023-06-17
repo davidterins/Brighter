@@ -61,7 +61,8 @@ namespace GreetingsSender
                 {
                     var retryPolicy = Policy.Handle<Exception>().WaitAndRetry(new[]
                     {
-                        TimeSpan.FromMilliseconds(50), TimeSpan.FromMilliseconds(100),
+                        TimeSpan.FromMilliseconds(50),
+                        TimeSpan.FromMilliseconds(100),
                         TimeSpan.FromMilliseconds(150)
                     });
 
@@ -70,7 +71,8 @@ namespace GreetingsSender
 
                     var retryPolicyAsync = Policy.Handle<Exception>().WaitAndRetryAsync(new[]
                     {
-                        TimeSpan.FromMilliseconds(50), TimeSpan.FromMilliseconds(100),
+                        TimeSpan.FromMilliseconds(50),
+                        TimeSpan.FromMilliseconds(100),
                         TimeSpan.FromMilliseconds(150)
                     });
 
@@ -89,7 +91,7 @@ namespace GreetingsSender
                         {
                             options.PolicyRegistry = policyRegistry;
                         })
-                        .UseInMemoryOutbox()
+                        //.UseInMemoryOutbox()
                         .UseExternalBus(
                             new NatsProducerRegistryFactory(
                                     new NatsMessagingGatewayConfiguration
@@ -101,6 +103,7 @@ namespace GreetingsSender
                                     {
                                         new NatsPublicationConfig
                                         {
+                                            StreamName = "newGreeting",
                                             Topic = new RoutingKey("greeting.event"),
                                             MakeChannels = OnMissingChannel.Validate,
                                             //NumPartitions = 3,

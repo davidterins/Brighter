@@ -8,6 +8,10 @@ namespace Paramore.Brighter.MessagingGateway.Nats
         {
         }
 
+        public string StreamName { get; set; }
+
+        public string Subject { get; set; }
+
         public int TopicFindTimeoutMs { get; set; }
     }
 }
