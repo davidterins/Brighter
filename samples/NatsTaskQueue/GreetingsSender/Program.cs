@@ -103,7 +103,7 @@ namespace GreetingsSender
                                     {
                                         new NatsPublicationConfig
                                         {
-                                            StreamName = "newGreeting",
+                                            StreamName = "nats-stream",
                                             Topic = new RoutingKey("greeting.event"),
                                             MakeChannels = OnMissingChannel.Validate,
                                             //NumPartitions = 3,
