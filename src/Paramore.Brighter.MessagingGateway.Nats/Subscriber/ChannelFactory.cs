@@ -24,7 +24,7 @@ namespace Paramore.Brighter.MessagingGateway.Nats
         /// <returns></returns>
         public IAmAChannel CreateChannel(Subscription subscription)
         {
-            NatsPullSubscription natsSubscription = subscription as NatsPullSubscription;  
+            NatsSubscriptionConfig natsSubscription = subscription as NatsSubscriptionConfig;  
             if (natsSubscription == null)
                 throw new ConfigurationException("We expect a NatsSubscription or NatsSubscription<T> as a parameter");
             

@@ -10,15 +10,12 @@ namespace Paramore.Brighter.MessagingGateway.Nats
     {
         protected static readonly ILogger s_logger = ApplicationLogging.CreateLogger<NatsMessageProducer>();
         protected IConnection _natsServerConnection;
-        protected string _streamName;
         protected OnMissingChannel MakeChannels;
-        protected RoutingKey Topic;
-        protected int NumPartitions;
-        protected short ReplicationFactor;
-        protected int TopicFindTimeoutMs;
+        protected RoutingKey Subject;
+        protected int SubjectFindTimoutMs;
         protected string StreamName;
 
-        protected void EnsureTopic()
+        protected void EnsureSubject()
         {
             switch (MakeChannels)
             {
@@ -33,7 +30,7 @@ namespace Paramore.Brighter.MessagingGateway.Nats
                     if (subjectExists)
                         return;
 
-                    throw new ChannelFailureException($"Subject: {Topic.Value} does not exist");
+                    throw new ChannelFailureException($"Subject: {Subject.Value} does not exist");
             }
         }
 
@@ -45,7 +42,7 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             {
                 StreamConfiguration streamConfig = jetStreamManagement.GetStreamInfo(StreamName).Config;
 
-                if (streamConfig.Subjects.Contains(Topic.Value))
+                if (streamConfig.Subjects.Contains(Subject.Value))
                 {
                     return true;
                 }

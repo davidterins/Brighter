@@ -1,5 +1,4 @@
 ﻿using System.Threading.Tasks;
-using Microsoft.VisualBasic;
 using NATS.Client;
 using NATS.Client.JetStream;
 
@@ -11,7 +10,10 @@ namespace Paramore.Brighter.MessagingGateway.Nats
         private readonly IConnection _natsServerConnection;
         private readonly string _streamName;
 
-        public NatsMessagePublisher(IConnection natsServerConnection, string streamName /*INatsMessageHeaderBuilder headerBuilder <---- ignore headers for now...*/)
+        public NatsMessagePublisher(
+            IConnection natsServerConnection,
+            string streamName
+            /*INatsMessageHeaderBuilder headerBuilder <---- ignore headers for now...*/)
         {
             _natsServerConnection = natsServerConnection;
             _streamName = streamName;

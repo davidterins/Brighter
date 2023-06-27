@@ -31,9 +31,9 @@ namespace GreetingsReceiverConsole
                 })
                 .ConfigureServices((hostContext, services) =>
                 {
-                    var subscriptions = new NatsPullSubscription[]
+                    var subscriptions = new NatsSubscriptionConfig[]
                     {
-                            new NatsPullSubscription<GreetingEvent>(
+                            new NatsSubscriptionConfig<GreetingEvent>(
                                 new SubscriptionName("greeting.event"),
                                 routingKey: new RoutingKey("greeting.event"),
                                 makeChannels: OnMissingChannel.Assume,
@@ -44,7 +44,7 @@ namespace GreetingsReceiverConsole
                     var consumerFactory = new NatsMessageConsumerFactory(
                         new NatsMessagingGatewayConfiguration
                         {
-                            Name = "GreetingsReciever"
+                            Name = "GreetingsReciever",
                         }
                     );
 

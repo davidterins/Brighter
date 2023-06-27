@@ -6,47 +6,32 @@
     /// </summary>
     public class NatsMessageConsumerFactory : IAmAMessageConsumerFactory
     {
-        private readonly NatsMessagingGatewayConfiguration _configuration;
+        private readonly NatsMessagingGatewayConfiguration _gatewayConfiguration;
 
         /// <summary>
         /// Initializes a factory with the <see cref="NatsMessagingGatewayConfiguration"/> used to connect to a Nats Broker
         /// </summary>
-        /// <param name="configuration">The <see cref="NatsMessagingGatewayConfiguration"/> used to connect to the Broker</param>
-        public NatsMessageConsumerFactory(NatsMessagingGatewayConfiguration configuration)
+        /// <param name="gatewayConfiguration">The <see cref="NatsMessagingGatewayConfiguration"/> used to connect to the Broker</param>
+        public NatsMessageConsumerFactory(NatsMessagingGatewayConfiguration gatewayConfiguration)
         {
-            _configuration = configuration;
+            _gatewayConfiguration = gatewayConfiguration;
         }
 
         /// <summary>
         /// Creates a consumer from the <see cref="Subscription{T}"/>
         /// </summary>
-        /// <param name="subscription">The <see cref="NatsPullSubscription"/> to read</param>
+        /// <param name="subscription">The <see cref="NatsSubscriptionConfig"/> to read</param>
         /// <returns>A consumer that can be used to read from the stream</returns>
         public IAmAMessageConsumer Create(Subscription subscription)
         {
-            NatsPullSubscription natsSubscription = subscription as NatsPullSubscription;
+            NatsSubscriptionConfig natsSubscriptionConfig = subscription as NatsSubscriptionConfig;
 
-            if (natsSubscription == null)
-                throw new ConfigurationException($"We expect a the subscription to be of type {nameof(NatsPullSubscription)}");
+            if (natsSubscriptionConfig == null)
+                throw new ConfigurationException($"We expect a the subscription to be of type {nameof(NatsSubscriptionConfig)}");
 
             return new NatsMessagePullConsumer(
-                configuration: _configuration,
-                subscriptionName: natsSubscription.Name,
-                routingKey: natsSubscription.RoutingKey, //subject
-                makeChannels: natsSubscription.MakeChannels
-                //groupId: natsSubscription.GroupId,
-                //offsetDefault: natsSubscription.OffsetDefault,
-                //sessionTimeoutMs: natsSubscription.SessionTimeoutMs,
-                //maxPollIntervalMs: natsSubscription.MaxPollIntervalMs,
-                //isolationLevel: natsSubscription.IsolationLevel,
-                //commitBatchSize: natsSubscription.CommitBatchSize,
-                //sweepUncommittedOffsetsIntervalMs: natsSubscription.SweepUncommittedOffsetsIntervalMs,
-                //readCommittedOffsetsTimeoutMs: natsSubscription.ReadCommittedOffsetsTimeOutMs,
-                //numPartitions: natsSubscription.NumPartitions,
-                //partitionAssignmentStrategy: natsSubscription.PartitionAssignmentStrategy,
-                //replicationFactor: natsSubscription.ReplicationFactor,
-                //topicFindTimeoutMs: natsSubscription.TopicFindTimeoutMs
-                );
+                gatewayConfiguration: _gatewayConfiguration,
+                natsSubscriptionConfig: natsSubscriptionConfig);
         }
     }
 }

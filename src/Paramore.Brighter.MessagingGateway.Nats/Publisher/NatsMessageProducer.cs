@@ -15,59 +15,20 @@ namespace Paramore.Brighter.MessagingGateway.Nats
 
         public NatsMessageProducer(
             NatsMessagingGatewayConfiguration globalConfiguration,
-            NatsPublicationConfig publication)
+            NatsPublicationConfig publicationOptions)
         {
-            if (string.IsNullOrEmpty(publication.Topic))
+            if (string.IsNullOrEmpty(publicationOptions.Topic))
                 throw new ConfigurationException("Topic is required for a publication");
 
-            #region Kafka config
-            //------------- Kafka specifics---------------
-
-            //_clientConfig = new ClientConfig
-            //{
-            //    Acks = (Confluent.Kafka.Acks)((int)publication.Replication),
-            //    BootstrapServers = string.Join(",", configuration.BootStrapServers),
-            //    ClientId = configuration.Name,
-            //    Debug = configuration.Debug,
-            //    SaslMechanism = configuration.SaslMechanisms.HasValue ? (Confluent.Kafka.SaslMechanism?)((int)configuration.SaslMechanisms.Value) : null,
-            //    SaslKerberosPrincipal = configuration.SaslKerberosPrincipal,
-            //    SaslUsername = configuration.SaslUsername,
-            //    SaslPassword = configuration.SaslPassword,
-            //    SecurityProtocol = configuration.SecurityProtocol.HasValue ? (Confluent.Kafka.SecurityProtocol?)((int)configuration.SecurityProtocol.Value) : null,
-            //    SslCaLocation = configuration.SslCaLocation,
-            //    SslKeyLocation = configuration.SslKeystoreLocation,
-            //};
-
-            //_producerConfig = new ProducerConfig(_clientConfig)
-            //{
-            //    BatchNumMessages = publication.BatchNumberMessages,
-            //    EnableIdempotence = publication.EnableIdempotence,
-            //    MaxInFlight = publication.MaxInFlightRequestsPerConnection,
-            //    LingerMs = publication.LingerMs,
-            //    MessageTimeoutMs = publication.MessageTimeoutMs,
-            //    MessageSendMaxRetries = publication.MessageSendMaxRetries,
-            //    Partitioner = (Confluent.Kafka.Partitioner)((int)publication.Partitioner),
-            //    QueueBufferingMaxMessages = publication.QueueBufferingMaxMessages,
-            //    QueueBufferingMaxKbytes = publication.QueueBufferingMaxKbytes,
-            //    RequestTimeoutMs = publication.RequestTimeoutMs,
-            //    RetryBackoffMs = publication.RetryBackoff,
-            //    TransactionalId = publication.TransactionalId,
-            //};
-            //--------------------------------------
-            #endregion
-
             // Expected properties from inherited Brighter interface
-            MakeChannels = publication.MakeChannels;
-            Topic = publication.Topic;
-            MaxOutStandingMessages = publication.MaxOutStandingMessages;
-            MaxOutStandingCheckIntervalMilliSeconds = publication.MaxOutStandingCheckIntervalMilliSeconds;
-            OutBoxBag = publication.OutBoxBag;
-            TopicFindTimeoutMs = publication.TopicFindTimeoutMs;
+            MakeChannels = publicationOptions.MakeChannels;
+            Subject = publicationOptions.Topic;
+            MaxOutStandingMessages = publicationOptions.MaxOutStandingMessages;
+            MaxOutStandingCheckIntervalMilliSeconds = publicationOptions.MaxOutStandingCheckIntervalMilliSeconds;
+            OutBoxBag = publicationOptions.OutBoxBag;
+            SubjectFindTimoutMs = publicationOptions.TopicFindTimeoutMs;
 
-
-            var indexOfStreamNameSplit = Topic.Value.IndexOf(".");
-
-            StreamName = publication.StreamName;
+            StreamName = publicationOptions.StreamName;
 
             //NumPartitions = publication.NumPartitions;
             //ReplicationFactor = publication.ReplicationFactor;
@@ -83,7 +44,7 @@ namespace Paramore.Brighter.MessagingGateway.Nats
 
             _publisher = new NatsMessagePublisher(_natsServerConnection, StreamName);
 
-            //EnsureTopic();
+            EnsureSubject();
         }
 
         #region IAmMessageProducer
