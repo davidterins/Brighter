@@ -11,19 +11,15 @@ namespace Paramore.Brighter.MessagingGateway.Nats
         protected static readonly ILogger s_logger = ApplicationLogging.CreateLogger<NatsMessageProducer>();
         protected IConnection _natsServerConnection;
         protected string _streamName;
-        //protected JetStreamOptions _jetStreamOptions;
-        //protected StreamConfiguration _streamConfiguration;
         protected OnMissingChannel MakeChannels;
         protected RoutingKey Topic;
         protected int NumPartitions;
         protected short ReplicationFactor;
         protected int TopicFindTimeoutMs;
         protected string StreamName;
-        protected string TopicName;
 
         protected void EnsureTopic()
         {
-
             switch (MakeChannels)
             {
                 case OnMissingChannel.Assume:
@@ -49,7 +45,7 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             {
                 StreamConfiguration streamConfig = jetStreamManagement.GetStreamInfo(StreamName).Config;
 
-                if (streamConfig.Subjects.Contains(TopicName))
+                if (streamConfig.Subjects.Contains(Topic.Value))
                 {
                     return true;
                 }

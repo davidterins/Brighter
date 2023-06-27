@@ -21,11 +21,12 @@ namespace Paramore.Brighter.MessagingGateway.Nats
     /// </summary>
     public class NatsMessagePullConsumer : NatsMessagingGateway, IAmAMessageConsumer
     {
-        //private IConsumer<string, byte[]> _consumer;
-        private readonly NatsMessageCreator _creator;
-        //private readonly ConsumerConfig _consumerConfig;
+
         //private List<TopicPartition> _partitions = new List<TopicPartition>();
         //private readonly ConcurrentBag<TopicPartitionOffset> _offsetStorage = new ConcurrentBag<TopicPartitionOffset>();
+        private readonly NatsMessageCreator _creator;
+        private readonly string _subscriptionName;
+        private bool _isSubscribed = false;
         private readonly long _maxBatchSize;
         private readonly int _readCommittedOffsetsTimeoutMs;
         private DateTime _lastFlushAt = DateTime.UtcNow;
@@ -66,6 +67,7 @@ namespace Paramore.Brighter.MessagingGateway.Nats
         /// <exception cref="ConfigurationException">Throws an exception if required parameters missing</exception>
         public NatsMessagePullConsumer(
             NatsMessagingGatewayConfiguration configuration,
+            SubscriptionName subscriptionName,
             RoutingKey routingKey,
             //string groupId,
             //AutoOffsetReset offsetDefault = AutoOffsetReset.Earliest,
@@ -92,86 +94,13 @@ namespace Paramore.Brighter.MessagingGateway.Nats
                 throw new ConfigurationException("You must set a RoutingKey as the Topic for the consumer");
             }
 
-            //if (groupId is null)
-            //{
-            //    throw new ConfigurationException("You must set a GroupId for the consumer");
-            //}
-
             Topic = routingKey;
-
-            #region Kafka client configuration
-
-            //_clientConfig = new ClientConfig
-            //{
-            //    BootstrapServers = string.Join(",", configuration.BootStrapServers),
-            //    ClientId = configuration.Name,
-            //    Debug = configuration.Debug,
-            //    SaslMechanism = configuration.SaslMechanisms.HasValue ? (Confluent.Nats.SaslMechanism?)((int)configuration.SaslMechanisms.Value) : null,
-            //    SaslKerberosPrincipal = configuration.SaslKerberosPrincipal,
-            //    SaslUsername = configuration.SaslUsername,
-            //    SaslPassword = configuration.SaslPassword,
-            //    SecurityProtocol = configuration.SecurityProtocol.HasValue ? (Confluent.Nats.SecurityProtocol?)((int)configuration.SecurityProtocol.Value) : null,
-            //    SslCaLocation = configuration.SslCaLocation
-            //};
-            //_consumerConfig = new ConsumerConfig(_clientConfig)
-            //{
-            //    GroupId = groupId,
-            //    ClientId = configuration.Name,
-            //    AutoOffsetReset = offsetDefault,
-            //    BootstrapServers = string.Join(",", configuration.BootStrapServers),
-            //    SessionTimeoutMs = sessionTimeoutMs,
-            //    MaxPollIntervalMs = maxPollIntervalMs,
-            //    EnablePartitionEof = true,
-            //    AllowAutoCreateTopics = false, //We will do this explicit always so as to allow us to set parameters for the topic
-            //    IsolationLevel = isolationLevel,
-            //    //We commit the last offset for acknowledged requests when a batch of records has been processed. 
-            //    EnableAutoOffsetStore = false,
-            //    EnableAutoCommit = false,
-            //    // https://www.confluent.io/blog/cooperative-rebalancing-in-Nats-streams-consumer-ksqldb/
-            //    PartitionAssignmentStrategy = partitionAssignmentStrategy,
-            //};
-
-            #endregion
-
+            _subscriptionName = subscriptionName.Value;
             _maxBatchSize = commitBatchSize;
             _sweepUncommittedInterval = TimeSpan.FromMilliseconds(sweepUncommittedOffsetsIntervalMs);
             _readCommittedOffsetsTimeoutMs = readCommittedOffsetsTimeoutMs;
 
-            //_consumer = new ConsumerBuilder<string, byte[]>(_consumerConfig)
-            //.SetPartitionsAssignedHandler((consumer, list) =>
-            //{
-            //    var partitions = list.Select(p => $"{p.Topic} : {p.Partition.Value}");
-
-            //    s_logger.LogInformation("Partition Added {Channels}", String.Join(",", partitions));
-
-            //    _partitions.AddRange(list);
-            //})
-            //.SetPartitionsRevokedHandler((consumer, list) =>
-            //{
-            //    _consumer.Commit(list);
-            //    var revokedPartitions = list.Select(tpo => $"{tpo.Topic} : {tpo.Partition}").ToList();
-
-            //    s_logger.LogInformation("Partitions for consumer revoked {Channels}", string.Join(",", revokedPartitions));
-
-            //    _partitions = _partitions.Where(tp => list.All(tpo => tpo.TopicPartition != tp)).ToList();
-            //})
-            //.SetPartitionsLostHandler((consumer, list) =>
-            //{
-            //    var lostPartitions = list.Select(tpo => $"{tpo.Topic} : {tpo.Partition}").ToList();
-
-            //    s_logger.LogInformation("Partitions for consumer lost {Channels}", string.Join(",", lostPartitions));
-
-            //    _partitions = _partitions.Where(tp => list.All(tpo => tpo.TopicPartition != tp)).ToList();
-            //})
-            //.SetErrorHandler((consumer, error) =>
-            //{
-            //    s_logger.LogError("Code: {ErrorCode}, Reason: {ErrorMessage}, Fatal: {FatalError}", error.Code,
-            //        error.Reason, error.IsFatal);
-            //})
-            //.Build();
-
-            s_logger.LogInformation("Kakfa consumer subscribing to {Topic}", Topic);
-            //_consumer.Subscribe(new[] { Topic.Value });
+            s_logger.LogInformation("Nats consumer subscribing to {Subject}", Topic);
 
             _creator = new NatsMessageCreator();
 
@@ -186,14 +115,13 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             _natsServerConnection = new ConnectionFactory().CreateConnection();
             IJetStream js = _natsServerConnection.CreateJetStreamContext();
 
-            pullSubscription = js.PullSubscribe(
-                "greeting.event",
-                PullSubscribeOptions.Builder().WithDurable("required-for-pull").Build());
-            ;
+            PullSubscribeOptions pullsubscribeOptions = PullSubscribeOptions.Builder()
+                .WithDurable(_subscriptionName)
+                .Build();
+
+            pullSubscription = js.PullSubscribe(Topic.Value, pullsubscribeOptions);
 
             EnsureTopic();
-
-
         }
 
         /// <summary>
@@ -271,13 +199,10 @@ namespace Paramore.Brighter.MessagingGateway.Nats
 
                 s_logger.LogDebug(
                     "Consuming messages from Nats stream, will wait for {Timeout}", timeoutInMilliseconds);
-
-                //pullSubscription.PullExpiresIn(batchSize: 1, timeoutInMilliseconds);
-                //IList<Msg> consumeResult = pullSubscription.Fetch(batchSize: 1, timeoutInMilliseconds);
                 try
                 {
                     pullSubscription.Pull(1);
-                    Msg consumeResult = pullSubscription.NextMessage(timeoutInMilliseconds);
+                    Msg consumeResult = pullSubscription.NextMessage(-1);
 
                     if (consumeResult == null)
                     {
@@ -359,203 +284,8 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             return false;
         }
 
-        private bool CheckHasPartitions()
-        {
-            return false;
-            //if (_partitions.Count <= 0)
-            //{
-            //    s_logger.LogDebug("Consumer is not allocated any partitions");
-            //    return false;
-            //}
-
-            //return true;
-        }
-
-
-        [Conditional("DEBUG")]
-        [DebuggerStepThrough]
-        private void LogOffSets()
-        {
-            //try
-            //{
-            //    var highestReadOffset = new Dictionary<TopicPartition, long>();
-
-            //    var committedOffsets = _consumer.Committed(_partitions, TimeSpan.FromMilliseconds(_readCommittedOffsetsTimeoutMs));
-            //    foreach (var committedOffset in committedOffsets)
-            //    {
-            //        if (highestReadOffset.TryGetValue(committedOffset.TopicPartition, out long offset))
-            //        {
-            //            if (committedOffset.Offset < offset)
-            //                continue;
-            //        }
-            //        highestReadOffset[committedOffset.TopicPartition] = committedOffset.Offset;
-            //    }
-
-            //    foreach (KeyValuePair<TopicPartition, long> pair in highestReadOffset)
-            //    {
-            //        var topicPartition = pair.Key;
-            //        s_logger.LogDebug(
-            //            "Offset to consume from is: {Offset} on partition: {ChannelName} for topic: {Topic}",
-            //            pair.Value.ToString(), topicPartition.Partition.Value.ToString(), topicPartition.Topic);
-            //    }
-            //}
-            //catch (NATSException ke)
-            //{
-            //    //This is only login for debug, so skip errors here
-            //    s_logger.LogDebug("Nats error logging the offsets: {ErrorMessage}", ke.Message);
-            //}
-        }
-
-        /// <summary>
-        /// Mainly used diagnostically in tests - how many offsets do we have now?
-        /// </summary>
-        /// <returns></returns>
-        public int StoredOffsets()
-        {
-            return -1;
-            //return _offsetStorage.Count;
-        }
-
-        /// <summary>
-        /// We commit a batch size worth at a time; this may be called from the sweeper thread, and we don't want it to
-        /// loop endlessly over the offset list as new items are added, which will trigger a commit anyway. So we limit
-        /// the trigger to only commit a batch size worth
-        /// </summary>
-        private void CommitOffsets()
-        {
-
-            //var listOffsets = new List<TopicPartitionOffset>();
-            //for (int i = 0; i < _maxBatchSize; i++)
-            //{
-            //    bool hasOffsets = _offsetStorage.TryTake(out var offset);
-            //    if (hasOffsets)
-            //        listOffsets.Add(offset);
-            //    else
-            //        break;
-
-            //}
-
-            //if (s_logger.IsEnabled(LogLevel.Information))
-            //{
-            //    var offsets = listOffsets.Select(tpo => $"Topic: {tpo.Topic} Partition: {tpo.Partition.Value} Offset: {tpo.Offset.Value}");
-            //    var offsetAsString = string.Join(Environment.NewLine, offsets);
-            //    s_logger.LogInformation("Commiting offsets: {0} {Offset}", Environment.NewLine, offsetAsString);
-            //}
-
-            //_consumer.Commit(listOffsets);
-            //_flushToken.Release(1);
-        }
-
-        private void CommitAllOffsets(DateTime flushTime)
-        {
-            //try
-            //{
-
-
-            //    var listOffsets = new List<TopicPartitionOffset>();
-            //    var currentOffsetsInBag = _offsetStorage.Count;
-            //    for (int i = 0; i < currentOffsetsInBag; i++)
-            //    {
-            //        bool hasOffsets = _offsetStorage.TryTake(out var offset);
-            //        if (hasOffsets)
-            //            listOffsets.Add(offset);
-            //        else
-            //            break;
-
-            //    }
-
-            //    if (s_logger.IsEnabled(LogLevel.Information))
-            //    {
-            //        var offsets = listOffsets.Select(tpo =>
-            //            $"Topic: {tpo.Topic} Partition: {tpo.Partition.Value} Offset: {tpo.Offset.Value}");
-            //        var offsetAsString = string.Join(Environment.NewLine, offsets);
-            //        s_logger.LogInformation("Sweeping offsets: {0} {Offset}", Environment.NewLine, offsetAsString);
-            //    }
-
-            //    _consumer.Commit(listOffsets);
-            //    _lastFlushAt = flushTime;
-            //}
-            //finally
-            //{
-            //    _flushToken.Release(1);
-            //}
-        }
-
-        // The batch size has been exceeded, so flush our offsets
-        private void FlushOffsets()
-        {
-            //var now = DateTime.UtcNow;
-            //if (_flushToken.Wait(TimeSpan.Zero))
-            //{
-            //    //This is expensive, so use a background thread
-            //    Task.Factory.StartNew(
-            //        action: state => CommitOffsets(),
-            //        state: now,
-            //        cancellationToken: CancellationToken.None,
-            //        creationOptions: TaskCreationOptions.DenyChildAttach,
-            //        scheduler: TaskScheduler.Default);
-            //}
-            //else
-            //{
-            //    s_logger.LogInformation("Skipped committing offsets, as another commit or sweep was running");
-            //}
-        }
-
-        //If it is has been too long since we flushed, flush now to prevent offsets accumulating 
-        private void SweepOffsets()
-        {
-            //var now = DateTime.UtcNow;
-
-            //if (now - _lastFlushAt < _sweepUncommittedInterval)
-            //{
-            //    return;
-            //}
-
-            //if (_flushToken.Wait(TimeSpan.Zero))
-            //{
-            //    if (now - _lastFlushAt < _sweepUncommittedInterval)
-            //    {
-            //        _flushToken.Release(1);
-            //        return;
-            //    }
-
-            //    //This is expensive, so use a background thread
-            //    Task.Factory.StartNew(
-            //        action: state => CommitAllOffsets((DateTime)state),
-            //        state: now,
-            //        cancellationToken: CancellationToken.None,
-            //        creationOptions: TaskCreationOptions.DenyChildAttach,
-            //        scheduler: TaskScheduler.Default);
-            //}
-            //else
-            //{
-            //    s_logger.LogInformation("Skipped sweeping offsets, as another commit or sweep was running");
-            //}
-        }
-
-        private void Close()
-        {
-            //pullSubscription.Drain();
-            //try
-            //{
-            //    _consumer.Commit();
-
-            //    var committedOffsets = _consumer.Committed(_partitions, TimeSpan.FromMilliseconds(_readCommittedOffsetsTimeoutMs));
-            //    foreach (var committedOffset in committedOffsets)
-            //        s_logger.LogInformation("Committed offset: {Offset} on partition: {ChannelName} for topic: {Topic}", committedOffset.Offset.Value.ToString(), committedOffset.Partition.Value.ToString(), committedOffset.Topic);
-
-            //}
-            //catch (Exception ex)
-            //{
-            //    //this may happen if the offset is already committed
-            //    s_logger.LogDebug("Error committing the current offset to Kakfa before closing: {ErrorMessage}", ex.Message);
-            //}
-        }
-
         protected virtual void Dispose(bool disposing)
         {
-            Close();
-
             if (!_disposedValue)
             {
                 if (disposing)

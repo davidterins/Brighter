@@ -31,6 +31,7 @@
 
             return new NatsMessagePullConsumer(
                 configuration: _configuration,
+                subscriptionName: natsSubscription.Name,
                 routingKey: natsSubscription.RoutingKey, //subject
                 makeChannels: natsSubscription.MakeChannels
                 //groupId: natsSubscription.GroupId,

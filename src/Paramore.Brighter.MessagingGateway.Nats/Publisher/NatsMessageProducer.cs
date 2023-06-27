@@ -68,7 +68,6 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             var indexOfStreamNameSplit = Topic.Value.IndexOf(".");
 
             StreamName = publication.StreamName;
-            TopicName = publication.Topic;
 
             //NumPartitions = publication.NumPartitions;
             //ReplicationFactor = publication.ReplicationFactor;

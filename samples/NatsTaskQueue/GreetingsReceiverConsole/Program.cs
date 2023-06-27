@@ -44,7 +44,7 @@ namespace GreetingsReceiverConsole
                     var consumerFactory = new NatsMessageConsumerFactory(
                         new NatsMessagingGatewayConfiguration
                         {
-                            Name = "paramore.brighter.greetingsReciever"
+                            Name = "GreetingsReciever"
                         }
                     );
 
@@ -52,7 +52,8 @@ namespace GreetingsReceiverConsole
                     {
                         options.Subscriptions = subscriptions;
                         options.ChannelFactory = new ChannelFactory(consumerFactory);
-                    }).AutoFromAssemblies(typeof(GreetingEventHandler).Assembly);
+                    })
+                    .AutoFromAssemblies(typeof(GreetingEventHandler).Assembly);
 
 
                     services.AddHostedService<ServiceActivatorHostedService>();
