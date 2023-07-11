@@ -8,15 +8,12 @@ namespace Paramore.Brighter.MessagingGateway.Nats
     {
         private readonly INatsMessageHeaderBuilder _headerBuilder;
         private readonly IConnection _natsServerConnection;
-        private readonly string _streamName;
 
         public NatsMessagePublisher(
-            IConnection natsServerConnection,
-            string streamName
+            IConnection natsServerConnection
             /*INatsMessageHeaderBuilder headerBuilder <---- ignore headers for now...*/)
         {
             _natsServerConnection = natsServerConnection;
-            _streamName = streamName;
         }
 
         public PublishAck PublishMessage(Message message)
@@ -27,7 +24,6 @@ namespace Paramore.Brighter.MessagingGateway.Nats
 
             PublishOptions publishOptions = PublishOptions.Builder()
                 .WithMessageId(message.Id.ToString())
-                .WithStream(_streamName)
                 .Build();
 
             return jetStream.Publish(natsMessage, publishOptions);
@@ -41,8 +37,6 @@ namespace Paramore.Brighter.MessagingGateway.Nats
 
             PublishOptions publishOptions = PublishOptions.Builder()
                 .WithMessageId(message.Id.ToString())
-                .WithStream(_streamName)
-                //.WithTimeout(1000)
                 .Build();
 
             return await jetStream.PublishAsync(natsMessage, publishOptions);

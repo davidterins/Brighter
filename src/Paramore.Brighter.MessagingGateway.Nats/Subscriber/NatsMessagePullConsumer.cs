@@ -37,7 +37,7 @@ namespace Paramore.Brighter.MessagingGateway.Nats
 
             if (natsSubscriptionConfig is null)
             {
-                throw new ConfigurationException($"You must set a {nameof(natsSubscriptionConfig)} for the consumer");
+                throw new ConfigurationException($"You must set a {nameof(NatsSubscriptionConfig)} for the consumer");
             }
 
             _messageCreator = new NatsMessageCreator();
@@ -46,9 +46,8 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             MakeChannels = natsSubscriptionConfig.MakeChannels;
             Subject = natsSubscriptionConfig.RoutingKey;
             StreamName = natsSubscriptionConfig.StreamName;
-            SubjectFindTimoutMs = natsSubscriptionConfig.SubjectFindTimoutMs;
 
-            Subscribe(natsSubscriptionConfig.RoutingKey.Value, natsSubscriptionConfig.Name.Value);
+            EnsureSubscription(natsSubscriptionConfig.RoutingKey.Value, natsSubscriptionConfig.Name.Value);
         }
 
         /// <summary>
@@ -86,33 +85,31 @@ namespace Paramore.Brighter.MessagingGateway.Nats
         {
             try
             {
-                //LogOffSets();
+                s_logger.LogDebug("Consuming messages from Nats stream, will wait for {Timeout}", timeoutInMilliseconds);
 
-                s_logger.LogDebug(
-                    "Consuming messages from Nats stream, will wait for {Timeout}", timeoutInMilliseconds);
-                try
+                _subscription.Pull(1);
+
+                Msg consumeResult = _subscription.NextMessage(-1);
+
+                if (consumeResult == null)
                 {
-                    _subscription.Pull(1);
-                    Msg consumeResult = _subscription.NextMessage(-1);
-
-                    if (consumeResult == null)
-                    {
-                        s_logger.LogDebug($"No messages available from Nats stream");
-                        return new Message[] { new Message() };
-                    }
-
-                    consumeResult.Ack();
-
-                    s_logger.LogDebug("Usable message retrieved from Nats stream: {Request}", Encoding.UTF8.GetString(consumeResult.Data));
-
-                    Message message = _messageCreator.CreateMessage(consumeResult);
-                    return new[] { message };
-
-                }
-                catch (Exception ex)
-                {
+                    s_logger.LogDebug($"No messages available from Nats stream");
                     return new Message[] { new Message() };
                 }
+
+                consumeResult.Ack();
+
+                s_logger.LogDebug("Usable message retrieved from Nats stream: {Request}", Encoding.UTF8.GetString(consumeResult.Data));
+
+                Message message = _messageCreator.CreateMessage(consumeResult);
+
+                return new[] { message };
+            }
+            catch (Exception ex)
+            {
+                s_logger.LogWarning($"{ex}");
+
+                return new Message[] { new Message() };
             }
         }
 
@@ -167,8 +164,11 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             GC.SuppressFinalize(this);
         }
 
-        private void Subscribe(string subject, string durableConsumerName)
+        private void EnsureSubscription(string subject, string durableConsumerName)
         {
+            if (_isSubscribed)
+                return;
+
             s_logger.LogInformation("Nats consumer subscribing to {subject}", subject);
 
             // TODO: Find somewhere to dispose the nats server connection and also pass in through ctr...
@@ -176,7 +176,7 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             IJetStream jetStream = _natsServerConnection.CreateJetStreamContext();
 
             PullSubscribeOptions pullsubscribeOptions = PullSubscribeOptions.Builder()
-                .WithDurable(durableConsumerName)
+                .WithDurable(durableConsumerName.Replace(".", "-").Replace("*", "-"))
                 .Build();
 
             _subscription = jetStream.PullSubscribe(Subject.Value, pullsubscribeOptions);

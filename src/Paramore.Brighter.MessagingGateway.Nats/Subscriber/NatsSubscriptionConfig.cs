@@ -6,7 +6,6 @@ namespace Paramore.Brighter.MessagingGateway.Nats
         public NatsSubscriptionConfig(
             Type dataType,
             string streamName = "",
-            int subjectFindTimoutMs = 300,
             SubscriptionName name = null,
             ChannelName channelName = null,
             RoutingKey routingKey = null,
@@ -24,20 +23,18 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             : base(dataType, name, channelName, routingKey, bufferSize, noOfPerformers, timeoutInMilliseconds, requeueCount, requeueDelayInMilliseconds, unacceptableMessageLimit, runAsync, channelFactory, makeChannels, emptyChannelDelay, channelFailureDelay)
         {
             StreamName = streamName;
-            SubjectFindTimoutMs = subjectFindTimoutMs;
         }
 
         /// <summary>
         /// Name of the stream, this property needs to be set in case <see cref="OnMissingChannel.Create"/> is used in order to create the subject on the correct stream.
         /// </summary>
-        public string StreamName { get; init; }
-
-        public int SubjectFindTimoutMs { get; init; } = 300;
+        public string StreamName { get; }
     }
 
     public class NatsSubscriptionConfig<T> : NatsSubscriptionConfig where T : IRequest
     {
         public NatsSubscriptionConfig(
+             string streamName = "",
              SubscriptionName name = null,
              ChannelName channelName = null,
              RoutingKey routingKey = null,
@@ -52,7 +49,7 @@ namespace Paramore.Brighter.MessagingGateway.Nats
              OnMissingChannel makeChannels = OnMissingChannel.Create,
              int emptyChannelDelay = 500,
              int channelFailureDelay = 1000)
-             : base(typeof(T), name, channelName, routingKey, bufferSize, noOfPerformers, timeoutInMilliseconds, requeueCount, requeueDelayInMilliseconds, unacceptableMessageLimit, runAsync, channelFactory, makeChannels, emptyChannelDelay, channelFailureDelay)
+             : base(typeof(T), streamName, name, channelName, routingKey, bufferSize, noOfPerformers, timeoutInMilliseconds, requeueCount, requeueDelayInMilliseconds, unacceptableMessageLimit, runAsync, channelFactory, makeChannels, emptyChannelDelay, channelFailureDelay)
         {
         }
     }

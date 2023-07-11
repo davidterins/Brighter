@@ -26,7 +26,6 @@ namespace Paramore.Brighter.MessagingGateway.Nats
             MaxOutStandingMessages = publicationOptions.MaxOutStandingMessages;
             MaxOutStandingCheckIntervalMilliSeconds = publicationOptions.MaxOutStandingCheckIntervalMilliSeconds;
             OutBoxBag = publicationOptions.OutBoxBag;
-            SubjectFindTimoutMs = publicationOptions.TopicFindTimeoutMs;
 
             StreamName = publicationOptions.StreamName;
 
@@ -40,9 +39,15 @@ namespace Paramore.Brighter.MessagingGateway.Nats
         /// </summary>
         public void Init()
         {
-            _natsServerConnection = new ConnectionFactory().CreateConnection(/*todo: figure out how to create and set options here*/);
+            // Configure connection options with username and password
+            Options opts = ConnectionFactory.GetDefaultOptions();
+            opts.Url = "nats://localhost:4222";
+            //opts.User = "admin";
+            //opts.Password = "admin";
 
-            _publisher = new NatsMessagePublisher(_natsServerConnection, StreamName);
+            _natsServerConnection = new ConnectionFactory().CreateConnection(opts);
+
+            _publisher = new NatsMessagePublisher(_natsServerConnection);
 
             EnsureSubject();
         }

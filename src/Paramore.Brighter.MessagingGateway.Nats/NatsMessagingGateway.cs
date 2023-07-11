@@ -3,16 +3,16 @@ using Microsoft.Extensions.Logging;
 using Paramore.Brighter.Logging;
 using NATS.Client.JetStream;
 using NATS.Client;
+using System.Linq;
 
 namespace Paramore.Brighter.MessagingGateway.Nats
 {
     public class NatsMessagingGateway
     {
-        protected static readonly ILogger s_logger = ApplicationLogging.CreateLogger<NatsMessageProducer>();
+        protected static readonly ILogger s_logger = ApplicationLogging.CreateLogger<NatsMessagingGateway>();
         protected IConnection _natsServerConnection;
         protected OnMissingChannel MakeChannels;
         protected RoutingKey Subject;
-        protected int SubjectFindTimoutMs;
         protected string StreamName;
 
         protected void EnsureSubject()
@@ -22,135 +22,58 @@ namespace Paramore.Brighter.MessagingGateway.Nats
                 case OnMissingChannel.Assume:
                     return;
                 case OnMissingChannel.Create:
-                    // Not supported as of now...
-                    throw new NotSupportedException("Creating Nats subjects, streams or both is not supported.");
+                    CreateSubjectOrThrowException();
+                    return;
                 case OnMissingChannel.Validate:
-                    var subjectExists = FindSubject();
-
-                    if (subjectExists)
-                        return;
-
-                    throw new ChannelFailureException($"Subject: {Subject.Value} does not exist");
+                    ValidateExistSubjectOrThrowException();
+                    return;
             }
         }
 
-        private bool FindSubject()
+        private void ValidateExistSubjectOrThrowException()
         {
-            IJetStreamManagement jetStreamManagement = _natsServerConnection.CreateJetStreamManagementContext();
-
             try
             {
-                StreamConfiguration streamConfig = jetStreamManagement.GetStreamInfo(StreamName).Config;
+                IJetStreamManagement jetStreamManagement = _natsServerConnection.CreateJetStreamManagementContext();
 
-                if (streamConfig.Subjects.Contains(Subject.Value))
+                StreamInfoOptions streamInfoBuilder = StreamInfoOptions.Builder()
+                    .WithFilterSubjects(Subject.Value)
+                    .Build();
+
+                StreamConfiguration streamInfo = jetStreamManagement.GetStreamInfo(StreamName, streamInfoBuilder).Config;
+
+                if (!streamInfo.Subjects.Any())
                 {
-                    return true;
+                    throw new Exception($"Subject: {Subject.Value} does not exist on stream: ${StreamName}");
                 }
-
-                return false;
             }
             catch (Exception e)
             {
-                throw new ChannelFailureException(e.Message);
+                throw new ChannelFailureException($"Failed to validate subject, {e.Message}");
             }
         }
 
-        //private void CreateJetsStreamSubject()
-        //{
-        //    string natsUrl = "nats://localhost:4222"; // Replace with your NATS server URL
+        private void CreateSubjectOrThrowException()
+        {
+            try
+            {
+                IJetStreamManagement jetStreamManagement = _natsServerConnection.CreateJetStreamManagementContext();
 
-        //    // Create a new NATS connection
-        //    using (IConnection connection = new ConnectionFactory().CreateConnection(natsUrl))
-        //    {
-        //        // Create the JetStream context
-        //        IJetStreamManagement JetStreamManagement = connection.CreateJetStreamManagementContext(JetStreamOptions.DefaultJsOptions);
+                StreamInfoOptions streamInfoBuilder = StreamInfoOptions.Builder()
+                    .WithFilterSubjects(Subject.Value)
+                    .Build();
 
+                StreamConfiguration streamInfo = jetStreamManagement.GetStreamInfo(StreamName, streamInfoBuilder).Config;
 
-        //        // Create a new stream
-        //        string streamName = "my_stream";
-        //        string subject = "my_subject";
+                streamInfo.Subjects.Add(Subject.Value);
 
-        //        StreamConfiguration streamConfig = StreamConfiguration.Builder()
-        //            .WithName(streamName)
-        //            .WithSubjects(subject)
-        //            .WithMaxMessages(1000)
-        //            .Build();
-
-        //        try
-        //        {
-        //            // Create the stream
-        //            JetStreamManagement.AddStream(streamConfig);
-
-        //            Console.WriteLine("Stream created successfully!");
-        //        }
-        //        catch (NATSBadSubscriptionException ex)
-        //        {
-        //            Console.WriteLine("Error creating stream: " + ex.Message);
-        //        }
-        //    }
-        //}
-
-        //private void AddJetsStreamSubject()
-        //{
-        //    string natsUrl = "nats://localhost:4222"; // Replace with your NATS server URL
-
-        //    // Create a new NATS connection
-        //    using (IConnection connection = new ConnectionFactory().CreateConnection(natsUrl))
-        //    {
-        //        // Create the JetStream context
-        //        IJetStreamManagement jetStreamManagement = connection.CreateJetStreamManagementContext();
-
-        //        // Update an existing stream
-        //        string streamName = "my_stream";
-        //        string subjectToAdd = "additional_subject";
-
-        //        try
-        //        {
-        //            // Retrieve the current stream configuration
-        //            StreamConfiguration streamConfig = jetStreamManagement.GetStreamInfo(streamName).Config;
-
-        //            streamConfig.Subjects.Add(subjectToAdd);
-
-        //            // Update the stream with the new configuration
-        //            jetStreamManagement.UpdateStream(streamConfig);
-
-        //            Console.WriteLine("Subject added to the stream successfully!");
-        //        }
-        //        catch (NATSBadSubscriptionException ex)
-        //        {
-        //            Console.WriteLine("Error updating stream: " + ex.Message);
-        //        }
-        //    }
-        //}
-
-        //private async Task MakeSubject()
-        //{
-        //    using (var adminClient = new AdminClientBuilder(_clientConfig).Build())
-        //    {
-        //        try
-        //        {
-        //            await adminClient.CreateTopicsAsync(new List<TopicSpecification>
-        //            {
-        //                new TopicSpecification
-        //                {
-        //                    Name = Topic.Value,
-        //                    NumPartitions = NumPartitions,
-        //                    ReplicationFactor = ReplicationFactor
-        //                }
-        //            });
-        //        }
-        //        catch (CreateTopicsException e)
-        //        {
-        //            if (e.Results[0].Error.Code != ErrorCode.TopicAlreadyExists)
-        //            {
-        //                throw new ChannelFailureException(
-        //                    $"An error occured creating topic {Topic.Value}: {e.Results[0].Error.Reason}");
-        //            }
-
-        //            s_logger.LogDebug("Topic {Topic} already exists", Topic.Value);
-        //        }
-        //    }
-        //}
+                jetStreamManagement.UpdateStream(streamInfo);
+            }
+            catch (Exception e)
+            {
+                throw new ChannelFailureException($"Failed to create subject: {Subject.Value} on stream: {StreamName}, {e.Message}");
+            }
+        }
     }
 }
 
